@@ -25,6 +25,38 @@ This repo includes all files necessary to reproduce all outputs. It contains:
 (8) And lastly this README.md of course..  
 
 
+## **Repository Structure**
+
+The repository contains:
+
+1. **`Dockerfile`**  
+   Defines the environment for reproducible analysis. Includes R, RStudio Server, and required packages.
+
+2. **`start.sh`**  
+   Shell script to build and run the Docker container. Launches RStudio Server at [http://localhost:8787](http://localhost:8787).  
+   - Username: `rstudio`  
+   - Password: `cheese`
+
+3. **`cheese.R`**  
+   Main R script containing the core data analysis.
+
+4. **`cheese.Rmd`**  
+   RMarkdown version of the analysis, with commentary and visualizations. Can be rendered to PDF or HTML.
+
+5. **`cheese.html`**  
+   Rendered HTML output of `cheese.Rmd` with full analysis results.
+
+6. **`/figures`**  
+   Folder containing all generated plots and images.
+
+7. **`Makefile`**  
+   Automates workflows, like running scripts or generating outputs with a single command.
+
+8. **`README.md`**  
+   This file! Provides an overview of the project.
+
+---
+
 First, download this entire repo to your desktop and then run start.sh to build the Docker image and then run the Docker container. You can do this by chmod+x start.sh and then run ./start.sh
 
 Then, connect to the local host http://localhost:8787 and log into the rstudio server. I have included the results already in this directory but you can use the R terminal to reproduce the entire analysis. 
