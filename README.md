@@ -66,15 +66,22 @@ chmod +x start.sh
 The script will automatically:
 - Build the Docker image (docker build . -t cheese)
 - Run the container and launch RStudio server on http://localhost:8787
-- Provide login credentials: 
+- Provide login credentials
   - Username: rstudio
   - Password: cheese
 
-First, download this entire repo to your desktop and then run start.sh to build the Docker image and then run the Docker container. You can do this by chmod+x start.sh and then run ./start.sh
+### **3. Open RStudio in your browser**
 
-Then, connect to the local host http://localhost:8787 and log into the rstudio server. I have included the results already in this directory but you can use the R terminal to reproduce the entire analysis. 
+Go to http://localhost:8787 and log in with the credentials above. All project files are available inside RStudio.
 
-First, make sure you are in the /home/rstudio/work directory. Then, to delete everything and start from scratch, type make clean in the R terminal. Then type, make in the terminal. Through make, all final figures and documents will be rendered.
+### **4. Generate the report**
 
-Thank you for reading me! 
+Inside RStudio or the terminal in the container:
+```bash
+make cheese.html
+```
+
+Then, to delete everything and start from scratch, type make clean in the R terminal. Then type, make in the terminal. Through make, all final figures and documents will be rendered.
+
+
 
