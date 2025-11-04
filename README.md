@@ -81,4 +81,3 @@ Inside RStudio terminal, run:
 make clean
 make cheese.html
 ```
-

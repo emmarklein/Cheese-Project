@@ -1,12 +1,15 @@
 # OS / macOS
 .DS_Store
-**/.DS_Store
+**/.DS_Storegit add .
 
 # R / RStudio
 .Rhistory
 .RData
 .Rproj.user
 .Ruserdata
+.Renviron
+.Rbuildignore
+.Rplots.pdf
 
 # Docker / caches
 .cache/
