@@ -41,7 +41,7 @@ The repository contains:
    Folder containing all generated plots and images.
 
 7. **`Makefile`**  
-   Automates workflows, like running scripts or generating outputs with a single command.
+   Automates the workflow, runs scripts and generates outputs with a single command.
 
 8. **`README.md`**  
    This file! Provides an overview of the project.
@@ -81,8 +81,4 @@ Inside RStudio terminal, run:
 make clean
 make cheese.html
 ```
-
-??? emma fix this later. Then type, make in the terminal. Through make, all final figures and documents will be rendered.
-
-
 
