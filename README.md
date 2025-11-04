@@ -1,6 +1,6 @@
 Cheese is more than just a food – it’s a global obsession. From gooey pizza and quesadillas to creamy fondue and spicy cheese tteokbokki, this project explores the world of cheese in all its flavors and forms.
 
-There are thousands of cheese varieties produced across the world. Each cheese varies in milk type (cow, goat, sheep, or even plant-based), texture (soft, semi-soft, hard), rind style (washed, cloth-wrapped, natural), flavor and aroma (nutty, rich, tangy), and nutritional content (fat and calcium content). The goal of this project is to analyze global cheese diversity and uncover patterns in cheese production. Using an extra cheesy dataset from [🧀 Cheese.com](https://www.cheese.com/), we explore questions such as:
+There are thousands of cheese varieties produced across the world. Each cheese varies in milk type (cow, goat, sheep, or even plant-based), texture (soft, semi-soft, hard), rind style (washed, cloth-wrapped, natural), flavor and aroma (nutty, rich, tangy), and nutritional content (fat and calcium content). The goal of this project is to analyze global cheese diversity and uncover patterns in cheese production. Using an extra cheesy dataset from [🧀 cheese.com](https://www.cheese.com/), we will explore questions such as:
 - Which countries produce the most unique cheese types?
 - How do milk types vary by country?
 - Are there patterns in cheese family, texture, or flavor across regions?
