@@ -1,4 +1,6 @@
-Hello! 
+Cheese is more than just a food – it’s a global obsession. From gooey pizza and quesadillas to creamy fondue and spicy cheese tteokbokki, this project explores the world of cheese in all its flavors and forms. 
+
+There are thousands of cheese varieties produced across the world. Each cheese varies in milk type (cow, goat, sheep, or even plant-based), texture (soft, semi-soft, hard), rind style (washed, cloth-wrapped, natural), flavor and aroma (nutty, rich, tangy), and nutritional content (fat and calcium content). 
 
 This directory includes all files necessary to reproduce all outputs for my bios611 clustering HW assignment. It contains:
 
