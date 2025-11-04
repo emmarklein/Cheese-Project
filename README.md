@@ -48,6 +48,21 @@ The repository contains:
 
 ---
 
+## **Usage**
+
+### **1. Clone the repository**
+```bash
+git clone https://github.com/emmarklein/Cheese-Project.git
+cd Cheese-Project
+```
+
+### **2. Start the Docker container**
+Make the script executable once, then run it:
+```bash
+chmod +x start.sh
+./start.sh
+```
+
 First, download this entire repo to your desktop and then run start.sh to build the Docker image and then run the Docker container. You can do this by chmod+x start.sh and then run ./start.sh
 
 Then, connect to the local host http://localhost:8787 and log into the rstudio server. I have included the results already in this directory but you can use the R terminal to reproduce the entire analysis. 
