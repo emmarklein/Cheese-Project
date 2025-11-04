@@ -80,4 +80,4 @@ Inside RStudio terminal, run:
 ```bash
 make clean
 make cheese.html
-```
+``` 
