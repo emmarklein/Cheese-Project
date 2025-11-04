@@ -74,14 +74,15 @@ The script will automatically:
 
 Go to http://localhost:8787 and log in with the credentials above. All project files are available inside RStudio.
 
-### **4. Generate the report**
+### **4. Generate the report from scratch**
 
-Inside RStudio or the terminal in the container:
+Inside RStudio terminal, run:
 ```bash
+make clean
 make cheese.html
 ```
 
-Then, to delete everything and start from scratch, type make clean in the R terminal. Then type, make in the terminal. Through make, all final figures and documents will be rendered.
+??? emma fix this later. Then type, make in the terminal. Through make, all final figures and documents will be rendered.
 
 
 
