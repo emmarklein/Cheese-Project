@@ -21,7 +21,7 @@ There are thousands of cheese varieties produced across the world. Each cheese v
 The repository contains:
 
 1. **`Dockerfile`**  
-   Defines the environment for reproducible analysis. Includes R, RStudio Server, and required packages. Tells Docker how to build the container.
+   Defines the environment for reproducible analysis. Includes R, RStudio server, and required packages. Tells Docker how to build the container.
 
 2. **`start.sh`**  
    Shell script to build and run the Docker container. Launches RStudio server at [http://localhost:8787](http://localhost:8787).  
@@ -62,6 +62,13 @@ Make the script executable once, then run it:
 chmod +x start.sh
 ./start.sh
 ```
+
+The script will automatically:
+- Build the Docker image (docker build . -t cheese)
+- Run the container and launch RStudio server on http://localhost:8787
+- Provide login credentials: 
+  - Username: rstudio
+  - Password: cheese
 
 First, download this entire repo to your desktop and then run start.sh to build the Docker image and then run the Docker container. You can do this by chmod+x start.sh and then run ./start.sh
 
