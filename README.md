@@ -9,12 +9,19 @@ There are thousands of cheese varieties produced across the world. Each cheese v
 This repo includes all files necessary to reproduce all outputs. It contains:
 
 (1) Dockerfile: ​​defines the environment aka the recipe that tells Docker how to build the container
+
 (2) cheese.R: main R script with fun cheese data analysis
+
 (3) cheese.Rmd: Rmarkdown file that includes more commentary and can be knitted to a pdf or html for the final report
+
 (4) cheese.html: rendered output from cheese.Rmd with complete data analysis results
+
 (5) /figures: a directory storing all generated plots and images
+
 (6) start.sh: shell script to build and run the Docker container
+
 (7) Makefile: my personal favorite, this file defines workflows and dependencies, allowing us to automate running analyses or generating outputs with a single command!
+
 (8) And lastly this README.md of course..  
 
 
