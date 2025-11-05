@@ -4,6 +4,9 @@ library(dplyr)
 library(stringr)
 library(tidyr)
 library(forcats)
+library(purrr)
+library(ggpubr)
+library(shiny)
 
 # tidytuesdayR package for cheese dataset
 install.packages("tidytuesdayR")
@@ -169,7 +172,288 @@ ggplot(milk_country_counts, aes(x = reorder(milk, n), y = n, fill = milk)) +
 
 # Interesting... most cheeses in different the most cow milk
 
+########################### Types of cheese exploration ##########################
+cheeses_clean <- cheeses_clean %>%
+  mutate(
+    main_type = str_trim(str_split_fixed(type, ",", 2)[,1]) # take first descriptor before comma
+  )
+
+cheeses_top <- cheeses_clean %>%
+  filter(country_clean %in% top_countries) %>%
+  count(country_clean, main_type, sort = TRUE) %>%
+  group_by(country_clean) %>%
+  slice_max(n, n = 5) %>%     # top 5 types per country
+  ungroup() %>% filter(!is.na(main_type))
+
+#fix order
+cheeses_top <- cheeses_top %>%
+  mutate(country_clean = factor(country_clean, levels = country_order))
+
+# --- Plot ---
+ggplot(cheeses_top, aes(x = reorder(main_type, n), y = n, fill = main_type)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  facet_wrap(~ country_clean, scales = "free_y", ncol = 5) +
+  labs(
+    title = "Top cheese types in the top 5 cheese-producing Countries",
+    x = "Cheese Type",
+    y = "Count"
+  ) +
+  theme_minimal(base_size = 13)
+
+# let's make it a pie chart for fun!
+# Compute proportions per country (so each pie sums to 1)
+cheeses_pie <- cheeses_top %>%
+  group_by(country_clean) %>%
+  mutate(perc = n / sum(n)) %>%
+  ungroup()
+
+# Pie chart per country (it's like a cheese wheel haha!)
+ggplot(cheeses_pie, aes(x = "", y = perc, fill = main_type)) +
+  geom_col(width = 1, color = "white") +
+  coord_polar(theta = "y") +
+  facet_wrap(~ country_clean, ncol = 5) +
+  labs(
+    title = "Top cheese types by country",
+    fill = " "
+  ) +
+  theme_void(base_size = 13) +
+  theme(
+    strip.text = element_text(size = 14, face = "bold"),
+    plot.title = element_text(
+      hjust = 0.5, size = 16, face = "bold", margin = margin(b = 10, t = 20)
+    ),
+    legend.position = "bottom",
+    legend.direction = "horizontal",
+    legend.box = "horizontal",
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    legend.spacing.x = unit(0.3, "cm")
+  ) +
+  guides(fill = guide_legend(nrow = 1))
 
 
+## This reveals a very interesting trend. Most of the top 5 cheese producing countries have a good spread of cheese types, but
+# France and Canada both have a large proportion of soft cheeses, it's actually a majority of the cheeses produced in these countries.
+# I am not surprised by this because France is very famous for its soft cheeses such as Brie and Blue cheese. And many Canadian cheeses are 
+#derived from traditional French varieties, reflecting the lasting influence of French colonization in Canada.
 
 
+########################### vegetarian and vegan curiosities ##########################
+
+## Where do the vegan cheeses come from?
+sum(cheeses_clean$vegan, na.rm = TRUE)
+
+## All the vegan cheeses are from the UK...
+cheeses_clean %>% filter(vegan == TRUE) %>% select(country_clean)
+
+# Where do the vegetarian cheeses come from?
+sum(cheeses_clean$vegetarian, na.rm = TRUE) 
+# way more vegetarian cheeses, 429 of them!
+
+# countries that produce vegetarian cheese!
+unique(cheeses_clean %>% filter(vegetarian == TRUE) %>% select(country_clean))
+
+
+########################### Let's look at fat content ##########################
+
+cheeses_fat <- cheeses_clean %>% filter(!is.na(fat_content))
+
+# let's standardize the fat content measurement
+cheeses_fat_clean <- cheeses_fat %>%
+  mutate(
+    fat_percent = case_when(
+      # If value is a range like "40-46%"
+      str_detect(fat_content, "-") ~ map_dbl(fat_content, function(x) {
+        nums <- str_extract_all(x, "\\d+\\.?\\d*")[[1]] %>% as.numeric()
+        mean(nums)
+      }),
+      # If value is a single % like "50%"
+      str_detect(fat_content, "%") ~ str_extract(fat_content, "\\d+\\.?\\d*") %>% as.numeric(),
+      # If value is g/100g
+      str_detect(fat_content, "g/100g") ~ str_extract(fat_content, "\\d+\\.?\\d*") %>% as.numeric(),
+      TRUE ~ NA_real_
+    )
+  )
+
+# Filter to only Soft and Hard cheeses
+cheeses_simple <- cheeses_fat_clean %>%
+  mutate(
+    type_group = case_when(
+      str_detect(main_type, "hard") ~ "Hard",
+      str_detect(main_type, "soft") ~ "Soft",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  filter(!is.na(type_group))  # remove anything not Soft or Hard
+
+# Performing t test to see if the difference in hard vs. soft cheese is statistically significant
+t_test_result <- t.test(fat_percent ~ type_group, data = cheeses_simple)
+t_test_result
+p_val <- t_test_result$p.value  # extract p-value
+# Format p-value nicely
+p_label <- paste0("p = ", signif(p_val, 3))
+
+#p-value = 0.01533! Since p < 0.05, we can say that the difference in fat content between hard and soft cheeses is
+# statistically significant. Clearly, the hard cheeses have higher fat content compared to soft cheeses, which makes sense.
+
+# Define cheesy colors for the boxplot
+cheese_colors <- c("Soft" = "#FFD966",  # light yellow
+                   "Hard" = "#FFA500")  # deeper orange
+
+my_comparisons <- list(c("Soft", "Hard"))
+
+ggplot(cheeses_simple, aes(x = type_group, y = fat_percent, fill = type_group)) +
+  geom_boxplot(width = 0.4, alpha = 0.8) +
+  scale_fill_manual(values = cheese_colors) +
+  labs(
+    title = "How does fat content vary between soft and hard cheeses?",
+    x = "Cheese Type",
+    y = "Fat Content (%)",
+    fill = "Cheese Type"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5, face = "bold")
+  ) +
+  stat_compare_means(
+    comparisons = my_comparisons,
+    method = "t.test",
+    label = "p.signif",      # shows *, **, ***
+    tip.length = 0.03,       # length of the horizontal ends of the bracket
+    size = 6,                # size of the asterisk
+    label.y = max(cheeses_simple$fat_percent) + 5
+  ) +
+  annotate(
+    "text",
+    x = 1.5,  # middle between the two boxes (Soft = 1, Hard = 2)
+    y = max(cheeses_simple$fat_percent) + 5,  # position above boxes
+    label = p_label,
+    size = 4
+  )
+
+# let's look at fat content across different cheese families
+cheese_family_fat <- cheeses_simple %>%
+  filter(!is.na(fat_percent), !is.na(family)) %>%
+  group_by(family) %>%
+  summarize(mean_fat = mean(fat_percent, na.rm = TRUE)) %>%
+  arrange(desc(mean_fat))
+
+
+ggplot(cheese_family_fat, aes(x = reorder(family, mean_fat), y = mean_fat, fill = mean_fat)) +
+  geom_col(width = 0.6) +
+  coord_flip() +  # makes it easier to read long family names
+  scale_fill_gradient(low = "#FFF7AE", high = "#FFB347") +
+  labs(
+    title = "Average Fat Content by Cheese Family",
+    x = "Cheese Family",
+    y = "Mean Fat Content (%)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5, face = "bold")
+  )
+
+########################### Let's make a Shiny app ##########################
+
+# i want to make an app that we can 
+# Assume your cleaned datasets and ggplots are already loaded:
+# cheeses_simple, cheeses_top, cheese_family_fat, etc.
+
+ui <- fluidPage(
+  titlePanel("Cheese Explorer 🧀"),
+  
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("plot_choice", "Choose a plot:",
+                  choices = c("Cheese Production by Country",
+                              "Top Cheese Types by Country",
+                              "Fat Content: Soft vs Hard",
+                              "Average Fat by Family"))
+    ),
+    
+    mainPanel(
+      plotOutput("cheese_plot", height = "600px")
+    )
+  )
+)
+
+server <- function(input, output) {
+  
+  output$cheese_plot <- renderPlot({
+    
+    if(input$plot_choice == "Cheese Production by Country"){
+      ggplot(cheese_counts, aes(x = reorder(country_clean, n), y = n)) +
+        geom_col(fill = "goldenrod") +
+        geom_text(aes(label = n), hjust = -0.1, size = 4) +
+        coord_flip() +
+        theme_minimal(base_size = 14) +
+        labs(
+          x = "",
+          y = "Types of cheese",
+          title = "Which countries produce the most cheese varieties?"
+        )
+      
+    } else if(input$plot_choice == "Top Cheese Types by Country"){
+      ggplot(cheeses_top, aes(x = reorder(main_type, n), y = n, fill = main_type)) +
+        geom_col(show.legend = FALSE) +
+        coord_flip() +
+        facet_wrap(~ country_clean, scales = "free_y", ncol = 5) +
+        labs(
+          title = "Top cheese types in the top 5 cheese-producing Countries",
+          x = "Cheese Type",
+          y = "Count"
+        ) +
+        theme_minimal(base_size = 13)
+      
+    } else if(input$plot_choice == "Fat Content: Soft vs Hard"){
+      ggplot(cheeses_simple, aes(x = type_group, y = fat_percent, fill = type_group)) +
+        geom_boxplot(width = 0.4, alpha = 0.8) +
+        scale_fill_manual(values = cheese_colors) +
+        labs(
+          title = "How does fat content vary between soft and hard cheeses?",
+          x = "Cheese Type",
+          y = "Fat Content (%)"
+        ) +
+        theme_minimal(base_size = 13) +
+        theme(legend.position = "none") +
+        stat_compare_means(
+          comparisons = my_comparisons,
+          method = "t.test",
+          label = "p.signif",
+          tip.length = 0.03,
+          size = 6,
+          label.y = max(cheeses_simple$fat_percent) + 5
+        ) +
+        annotate(
+          "text",
+          x = 1.5,
+          y = max(cheeses_simple$fat_percent) + 5,
+          label = p_label,
+          size = 4
+        )
+      
+    } else if(input$plot_choice == "Average Fat by Family"){
+      ggplot(cheese_family_fat, aes(x = reorder(family, mean_fat), y = mean_fat, fill = mean_fat)) +
+        geom_col(width = 0.6) +
+        coord_flip() +
+        scale_fill_gradient(low = "#FFF7AE", high = "#FFB347") +
+        labs(
+          title = "Average Fat Content by Cheese Family",
+          x = "Cheese Family",
+          y = "Mean Fat Content (%)"
+        ) +
+        theme_minimal(base_size = 13) +
+        theme(
+          legend.position = "none",
+          plot.title = element_text(hjust = 0.5, face = "bold")
+        )
+    }
+    
+  })
+  
+}
+
+shinyApp(ui = ui, server = server)
