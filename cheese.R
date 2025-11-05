@@ -7,8 +7,9 @@ library(forcats)
 library(purrr)
 library(ggpubr)
 library(shiny)
+library(patchwork)
 
-# tidytuesdayR package for cheese dataset
+# tidytugridExtra# tidytuesdayR package for cheese dataset
 install.packages("tidytuesdayR")
 tuesdata <- tidytuesdayR::tt_load('2024-06-04')
 
@@ -54,7 +55,7 @@ cheese_counts <- cheeses_clean %>%
   filter(!is.na(country_clean)) %>% 
   slice_max(n, n = 20)
 
-ggplot(cheese_counts, aes(x = reorder(country_clean, n), y = n)) +
+plot1 <- ggplot(cheese_counts, aes(x = reorder(country_clean, n), y = n)) +
   geom_col(fill = "goldenrod") + #cheesy color
   geom_text(aes(label = n), 
             hjust = -0.1,
@@ -108,7 +109,7 @@ cheesy_states <- cheese_US %>%
 cheese_states_n <- cheesy_states %>%
   count(state, sort = TRUE)
 
-ggplot(cheese_states_n, aes(x = reorder(state, n), y = n)) +
+plot2 <- ggplot(cheese_states_n, aes(x = reorder(state, n), y = n)) +
   geom_col(fill = "#FFA600") + #cheddar orange color
   geom_text(aes(label = n), 
             hjust = -0.1,
@@ -152,7 +153,7 @@ milk_country_counts <- milk_country_counts %>%
   mutate(country_clean = factor(country_clean, levels = country_order))
 
 # Plot one barplot per country, ordered by total cheese types
-ggplot(milk_country_counts, aes(x = reorder(milk, n), y = n, fill = milk)) +
+plot3 <- ggplot(milk_country_counts, aes(x = reorder(milk, n), y = n, fill = milk)) +
   geom_col(show.legend = FALSE) +
   geom_text(aes(label = n), 
             hjust = -0.1,
@@ -189,14 +190,14 @@ cheeses_top <- cheeses_clean %>%
 cheeses_top <- cheeses_top %>%
   mutate(country_clean = factor(country_clean, levels = country_order))
 
-# --- Plot ---
-ggplot(cheeses_top, aes(x = reorder(main_type, n), y = n, fill = main_type)) +
+# barplot per country
+plot_bar <- ggplot(cheeses_top, aes(x = reorder(main_type, n), y = n, fill = main_type)) +
   geom_col(show.legend = FALSE) +
   coord_flip() +
   facet_wrap(~ country_clean, scales = "free_y", ncol = 5) +
   labs(
-    title = "Top cheese types in the top 5 cheese-producing Countries",
-    x = "Cheese Type",
+    title = "Cheese types across the top 5 cheese-producing countries",
+    x = "",
     y = "Count"
   ) +
   theme_minimal(base_size = 13)
@@ -209,19 +210,19 @@ cheeses_pie <- cheeses_top %>%
   ungroup()
 
 # Pie chart per country (it's like a cheese wheel haha!)
-ggplot(cheeses_pie, aes(x = "", y = perc, fill = main_type)) +
+plot_pie <- ggplot(cheeses_pie, aes(x = "", y = perc, fill = main_type)) +
   geom_col(width = 1, color = "white") +
   coord_polar(theta = "y") +
   facet_wrap(~ country_clean, ncol = 5) +
   labs(
-    title = "Top cheese types by country",
+    title = " ",
     fill = " "
   ) +
   theme_void(base_size = 13) +
   theme(
-    strip.text = element_text(size = 14, face = "bold"),
+    strip.text = element_text(size = 14),
     plot.title = element_text(
-      hjust = 0.5, size = 16, face = "bold", margin = margin(b = 10, t = 20)
+      hjust = 0.5, size = 16, margin = margin(b = 10, t = 20)
     ),
     legend.position = "bottom",
     legend.direction = "horizontal",
@@ -232,6 +233,8 @@ ggplot(cheeses_pie, aes(x = "", y = perc, fill = main_type)) +
   ) +
   guides(fill = guide_legend(nrow = 1))
 
+plot4 <- plot_bar / plot_pie
+ggsave("cheese_plots_patchwork.png", plot4, width = 8, height = 10)
 
 ## This reveals a very interesting trend. Most of the top 5 cheese producing countries have a good spread of cheese types, but
 # France and Canada both have a large proportion of soft cheeses, it's actually a majority of the cheeses produced in these countries.
@@ -303,7 +306,7 @@ cheese_colors <- c("Soft" = "#FFD966",  # light yellow
 
 my_comparisons <- list(c("Soft", "Hard"))
 
-ggplot(cheeses_simple, aes(x = type_group, y = fat_percent, fill = type_group)) +
+plot5 <- ggplot(cheeses_simple, aes(x = type_group, y = fat_percent, fill = type_group)) +
   geom_boxplot(width = 0.4, alpha = 0.8) +
   scale_fill_manual(values = cheese_colors) +
   labs(
@@ -341,7 +344,7 @@ cheese_family_fat <- cheeses_simple %>%
   arrange(desc(mean_fat))
 
 
-ggplot(cheese_family_fat, aes(x = reorder(family, mean_fat), y = mean_fat, fill = mean_fat)) +
+plot6 <- ggplot(cheese_family_fat, aes(x = reorder(family, mean_fat), y = mean_fat, fill = mean_fat)) +
   geom_col(width = 0.6) +
   coord_flip() +  # makes it easier to read long family names
   scale_fill_gradient(low = "#FFF7AE", high = "#FFB347") +
@@ -358,102 +361,61 @@ ggplot(cheese_family_fat, aes(x = reorder(family, mean_fat), y = mean_fat, fill 
 
 ########################### Let's make a Shiny app ##########################
 
-# i want to make an app that we can 
-# Assume your cleaned datasets and ggplots are already loaded:
-# cheeses_simple, cheeses_top, cheese_family_fat, etc.
+# i want to make an app so that a user can easily look at each plot!
+library(shiny)
+library(ggplot2)
+library(patchwork) # if you want to combine plots
 
 ui <- fluidPage(
-  titlePanel("Cheese Explorer 🧀"),
+  titlePanel("Cheese Visualizations"),
   
   sidebarLayout(
     sidebarPanel(
-      selectInput("plot_choice", "Choose a plot:",
-                  choices = c("Cheese Production by Country",
-                              "Top Cheese Types by Country",
-                              "Fat Content: Soft vs Hard",
-                              "Average Fat by Family"))
+      selectInput(
+        inputId = "plot_choice",
+        label = "Choose a plot to display:",
+        choices = c(
+          "Top Countries" = "plot1",
+          "US States" = "plot2",
+          "Milk Types by Country" = "plot3",
+          "Top Cheese Types Bar" = "plot_bar",
+          "Top Cheese Types Pie" = "plot_pie",
+          "Combined Bar + Pie" = "plot4",
+          "Soft vs Hard Fat Content" = "plot5",
+          "Fat Content by Family" = "plot6"
+        )
+      )
     ),
     
     mainPanel(
-      plotOutput("cheese_plot", height = "600px")
+      plotOutput("cheese_plot", height = "700px")
     )
   )
 )
 
-server <- function(input, output) {
+server <- function(input, output, session) {
   
   output$cheese_plot <- renderPlot({
-    
-    if(input$plot_choice == "Cheese Production by Country"){
-      ggplot(cheese_counts, aes(x = reorder(country_clean, n), y = n)) +
-        geom_col(fill = "goldenrod") +
-        geom_text(aes(label = n), hjust = -0.1, size = 4) +
-        coord_flip() +
-        theme_minimal(base_size = 14) +
-        labs(
-          x = "",
-          y = "Types of cheese",
-          title = "Which countries produce the most cheese varieties?"
-        )
-      
-    } else if(input$plot_choice == "Top Cheese Types by Country"){
-      ggplot(cheeses_top, aes(x = reorder(main_type, n), y = n, fill = main_type)) +
-        geom_col(show.legend = FALSE) +
-        coord_flip() +
-        facet_wrap(~ country_clean, scales = "free_y", ncol = 5) +
-        labs(
-          title = "Top cheese types in the top 5 cheese-producing Countries",
-          x = "Cheese Type",
-          y = "Count"
-        ) +
-        theme_minimal(base_size = 13)
-      
-    } else if(input$plot_choice == "Fat Content: Soft vs Hard"){
-      ggplot(cheeses_simple, aes(x = type_group, y = fat_percent, fill = type_group)) +
-        geom_boxplot(width = 0.4, alpha = 0.8) +
-        scale_fill_manual(values = cheese_colors) +
-        labs(
-          title = "How does fat content vary between soft and hard cheeses?",
-          x = "Cheese Type",
-          y = "Fat Content (%)"
-        ) +
-        theme_minimal(base_size = 13) +
-        theme(legend.position = "none") +
-        stat_compare_means(
-          comparisons = my_comparisons,
-          method = "t.test",
-          label = "p.signif",
-          tip.length = 0.03,
-          size = 6,
-          label.y = max(cheeses_simple$fat_percent) + 5
-        ) +
-        annotate(
-          "text",
-          x = 1.5,
-          y = max(cheeses_simple$fat_percent) + 5,
-          label = p_label,
-          size = 4
-        )
-      
-    } else if(input$plot_choice == "Average Fat by Family"){
-      ggplot(cheese_family_fat, aes(x = reorder(family, mean_fat), y = mean_fat, fill = mean_fat)) +
-        geom_col(width = 0.6) +
-        coord_flip() +
-        scale_fill_gradient(low = "#FFF7AE", high = "#FFB347") +
-        labs(
-          title = "Average Fat Content by Cheese Family",
-          x = "Cheese Family",
-          y = "Mean Fat Content (%)"
-        ) +
-        theme_minimal(base_size = 13) +
-        theme(
-          legend.position = "none",
-          plot.title = element_text(hjust = 0.5, face = "bold")
-        )
+    # Dynamically display the selected plot
+    if(input$plot_choice == "plot1") {
+      plot1
+    } else if(input$plot_choice == "plot2") {
+      plot2
+    } else if(input$plot_choice == "plot3") {
+      plot3
+    } else if(input$plot_choice == "plot_bar") {
+      plot_bar
+    } else if(input$plot_choice == "plot_pie") {
+      plot_pie
+    } else if(input$plot_choice == "plot4") {
+      plot4
+    } else if(input$plot_choice == "plot5") {
+      plot5
+    } else if(input$plot_choice == "plot6") {
+      plot6
     }
-    
   })
-  
 }
 
-shinyApp(ui = ui, server = server)
+shinyApp(ui, server)
+
