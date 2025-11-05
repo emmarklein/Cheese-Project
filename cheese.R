@@ -156,10 +156,11 @@ milk_country_counts <- milk_country_counts %>%
 plot3 <- ggplot(milk_country_counts, aes(x = reorder(milk, n), y = n, fill = milk)) +
   geom_col(show.legend = FALSE) +
   geom_text(aes(label = n), 
-            hjust = -0.1,
+            hjust = -0.1,      # slightly outside the bar
             size = 4) +
-  facet_wrap(~ country_clean, scales = "free_y", ncol =5) +
-  coord_flip() +
+  facet_wrap(~ country_clean, scales = "free_y", ncol = 5) +
+  coord_flip(clip = "off") +       # prevent text from being clipped
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2))) +  # add extra space above bars
   labs(
     title = "Milk types used in cheese across the world",
     x = "Milk type",
@@ -168,7 +169,8 @@ plot3 <- ggplot(milk_country_counts, aes(x = reorder(milk, n), y = n, fill = mil
   theme_minimal(base_size = 13) +
   theme(
     strip.text = element_text(face = "bold"),
-    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    plot.margin = margin(20, 40, 20, 20)  # top, right, bottom, left
   )
 
 # Interesting... most cheeses in different the most cow milk
@@ -375,14 +377,12 @@ ui <- fluidPage(
         inputId = "plot_choice",
         label = "Choose a plot to display:",
         choices = c(
-          "Top Countries" = "plot1",
-          "US States" = "plot2",
+          "Top Cheesy Countries" = "plot1",
+          "Top Cheesy US States" = "plot2",
           "Milk Types by Country" = "plot3",
-          "Top Cheese Types Bar" = "plot_bar",
-          "Top Cheese Types Pie" = "plot_pie",
-          "Combined Bar + Pie" = "plot4",
-          "Soft vs Hard Fat Content" = "plot5",
-          "Fat Content by Family" = "plot6"
+          "Cheese Types across Cheesy Countries" = "plot4",
+          "Fat Content by Cheese Type" = "plot5",
+          "Fat Content by Cheese Family" = "plot6"
         )
       )
     ),
@@ -396,17 +396,12 @@ ui <- fluidPage(
 server <- function(input, output, session) {
   
   output$cheese_plot <- renderPlot({
-    # Dynamically display the selected plot
     if(input$plot_choice == "plot1") {
       plot1
     } else if(input$plot_choice == "plot2") {
       plot2
     } else if(input$plot_choice == "plot3") {
       plot3
-    } else if(input$plot_choice == "plot_bar") {
-      plot_bar
-    } else if(input$plot_choice == "plot_pie") {
-      plot_pie
     } else if(input$plot_choice == "plot4") {
       plot4
     } else if(input$plot_choice == "plot5") {
