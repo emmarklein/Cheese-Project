@@ -68,6 +68,8 @@ plot1 <- ggplot(cheese_counts, aes(x = reorder(country_clean, n), y = n)) +
     title = "Which countries produce the most cheese varieties?"
   ) 
 
+ggsave("figures/plot1.png", plot1, width = 10, height = 5)
+
 ########################### Cheese type per US region ##########################
 
 # Let's focus on the US and check out the cheese production by region
@@ -122,6 +124,8 @@ plot2 <- ggplot(cheese_states_n, aes(x = reorder(state, n), y = n)) +
     title = "Which US states produce the most cheese varieties?"
   ) 
 
+ggsave("figures/plot2.png", plot2, width = 10, height = 5)
+
 ## Wow wisconsin produces a LOT of different types of cheese!
 
 ########################### Types of milk exploration ##########################
@@ -157,7 +161,7 @@ plot3 <- ggplot(milk_country_counts, aes(x = reorder(milk, n), y = n, fill = mil
   geom_col(show.legend = FALSE) +
   geom_text(aes(label = n), 
             hjust = -0.1,      # slightly outside the bar
-            size = 4) +
+            size = 3) +
   facet_wrap(~ country_clean, scales = "free_y", ncol = 5) +
   coord_flip(clip = "off") +       # prevent text from being clipped
   scale_y_continuous(expand = expansion(mult = c(0, 0.2))) +  # add extra space above bars
@@ -166,12 +170,14 @@ plot3 <- ggplot(milk_country_counts, aes(x = reorder(milk, n), y = n, fill = mil
     x = "Milk type",
     y = "Number of cheeses"
   ) +
-  theme_minimal(base_size = 13) +
+  theme_minimal(base_size = 10) +
   theme(
     strip.text = element_text(face = "bold"),
-    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
     plot.margin = margin(20, 40, 20, 20)  # top, right, bottom, left
   )
+
+ggsave("figures/plot3.png", plot3, width = 10, height = 4)
 
 # Interesting... most cheeses in different the most cow milk
 
@@ -202,7 +208,7 @@ plot_bar <- ggplot(cheeses_top, aes(x = reorder(main_type, n), y = n, fill = mai
     x = "",
     y = "Count"
   ) +
-  theme_minimal(base_size = 13)
+  theme_minimal(base_size = 10)
 
 # let's make it a pie chart for fun!
 # Compute proportions per country (so each pie sums to 1)
@@ -212,8 +218,9 @@ cheeses_pie <- cheeses_top %>%
   ungroup()
 
 # Pie chart per country (it's like a cheese wheel haha!)
-plot_pie <- ggplot(cheeses_pie, aes(x = "", y = perc, fill = main_type)) +
-  geom_col(width = 1, color = "white") +
+plot_pie <- ggplot(cheeses_pie %>% filter(perc > 0), 
+                   aes(x = "", y = perc, fill = main_type)) +
+  geom_col(width = 0.95, color = NA) +  # no border lines
   coord_polar(theta = "y") +
   facet_wrap(~ country_clean, ncol = 5) +
   labs(
@@ -222,21 +229,21 @@ plot_pie <- ggplot(cheeses_pie, aes(x = "", y = perc, fill = main_type)) +
   ) +
   theme_void(base_size = 13) +
   theme(
-    strip.text = element_text(size = 14),
+    strip.text = element_text(size = 10),
     plot.title = element_text(
       hjust = 0.5, size = 16, margin = margin(b = 10, t = 20)
     ),
     legend.position = "bottom",
     legend.direction = "horizontal",
     legend.box = "horizontal",
-    legend.title = element_text(size = 12),
-    legend.text = element_text(size = 10),
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 8),
     legend.spacing.x = unit(0.3, "cm")
   ) +
   guides(fill = guide_legend(nrow = 1))
 
 plot4 <- plot_bar / plot_pie
-ggsave("cheese_plots_patchwork.png", plot4, width = 8, height = 10)
+ggsave("figures/plot4.png", plot4, width = 10, height = 5)
 
 ## This reveals a very interesting trend. Most of the top 5 cheese producing countries have a good spread of cheese types, but
 # France and Canada both have a large proportion of soft cheeses, it's actually a majority of the cheeses produced in these countries.
@@ -314,7 +321,7 @@ plot5 <- ggplot(cheeses_simple, aes(x = type_group, y = fat_percent, fill = type
   labs(
     title = "How does fat content vary between soft and hard cheeses?",
     x = "Cheese Type",
-    y = "Fat Content (%)",
+    y = "Fat content (%)",
     fill = "Cheese Type"
   ) +
   theme_minimal(base_size = 13) +
@@ -338,6 +345,8 @@ plot5 <- ggplot(cheeses_simple, aes(x = type_group, y = fat_percent, fill = type
     size = 4
   )
 
+ggsave("figures/plot5.png", plot5, width = 8, height = 9)
+
 # let's look at fat content across different cheese families
 cheese_family_fat <- cheeses_simple %>%
   filter(!is.na(fat_percent), !is.na(family)) %>%
@@ -351,15 +360,17 @@ plot6 <- ggplot(cheese_family_fat, aes(x = reorder(family, mean_fat), y = mean_f
   coord_flip() +  # makes it easier to read long family names
   scale_fill_gradient(low = "#FFF7AE", high = "#FFB347") +
   labs(
-    title = "Average Fat Content by Cheese Family",
-    x = "Cheese Family",
-    y = "Mean Fat Content (%)"
+    title = "How does average fat content vary between cheese families?",
+    x = "Cheese family",
+    y = "Mean fat content (%)"
   ) +
   theme_minimal(base_size = 13) +
   theme(
     legend.position = "none",
     plot.title = element_text(hjust = 0.5, face = "bold")
   )
+
+ggsave("figures/plot6.png", plot6, width = 10, height = 5)
 
 ########################### Let's make a Shiny app ##########################
 
