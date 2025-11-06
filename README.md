@@ -10,9 +10,10 @@ Cheese is more than just a food... it’s a global obsession! From gooey pizza a
 
 There are thousands of cheese varieties produced across the world. Each cheese varies in milk type (cow, goat, sheep, or even plant-based), texture (soft, semi-soft, hard), rind style (washed, cloth-wrapped, natural), flavor and aroma (nutty, rich, tangy), and nutritional content (fat and calcium content). The goal of this project is to analyze global cheese diversity and uncover patterns in cheese production. Using an extra cheesy dataset from [cheese.com](https://www.cheese.com/), we will explore questions such as:
 - Which countries produce the most unique cheese types?
+- Which US states produce the most unique cheese types?
 - How do milk types vary by country?
-- Are there patterns in cheese family, texture, or flavor across regions?
-- Can we predict the origin of a cheese based on its characteristics?
+- How does fat content vary between soft and hard cheeses?
+- How does fat content vary across cheese families?
 
 ---
 
@@ -42,8 +43,11 @@ The repository contains:
 
 7. **`Makefile`**  
    Automates the workflow, runs scripts and generates outputs with a single command.
+   
+8. **`shinyapp.R`**  
+   This R script includes code to launch a shiny app with all the figures.
 
-8. **`README.md`**  
+9. **`README.md`**  
    This file! Provides an overview of the project.
 
 ---
@@ -76,8 +80,13 @@ Go to http://localhost:8787 and log in with the credentials above. All project f
 
 ### **4. Generate the report from scratch**
 
-Inside RStudio terminal, run:
+To run the full analysis inside RStudio terminal and generate the final cheese report:
 ```bash
 make clean
 make cheese.html
+``` 
+
+To launch the shiny app: 
+```bash
+make shiny
 ``` 
