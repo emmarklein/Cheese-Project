@@ -2,9 +2,12 @@
 .PHONY: all clean 
 
 # List of all generated figures from R script
-FIGURES = figures/combined_plot.png \
-          figures/spectral_plot.png \
-          figures/3d_shell_plot.html figures/3d_shell_plot_files
+FIGURES = figures/plot1.png \
+          figures/plot2.png \
+          figures/plot3.png \
+          figures/plot4.png \
+          figures/plot5.png \
+          figures/plot6.png 
 
 # Generate all the figures and render report
 all: cheese.html $(FIGURES)
@@ -25,4 +28,9 @@ cheese.html: cheese.Rmd $(FIGURES)
 clean:
 	rm -f cheese.html
 	rm -rf figures
+
+# make a shiny app	
+shiny:
+	Rscript -e "shiny::runApp('shinyapp.R', launch.browser = TRUE)"
+
 
