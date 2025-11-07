@@ -4,6 +4,11 @@ library(shiny)
 # let's source cheese.R for the plots
 source("cheese.R") 
 
+
+## Input port argument
+args <- commandArgs(trailingOnly=TRUE)
+port <- as.numeric(args[[1]])
+
 # i want to make an app so that a user can easily look at each plot!
 ui <- fluidPage(
   titlePanel("Let's explore cheese data!"),
@@ -49,4 +54,6 @@ server <- function(input, output, session) {
   })
 }
 
-shinyApp(ui, server)
+## Run
+shinyApp(ui = ui, server = server, options = list(port = 4747,
+                                                  host = "0.0.0.0"))

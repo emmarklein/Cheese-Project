@@ -31,6 +31,4 @@ clean:
 
 # make a shiny app	
 shiny:
-	Rscript -e "shiny::runApp('shinyapp.R', launch.browser = TRUE)"
-
-
+	Rscript shinyapp.R 4747
