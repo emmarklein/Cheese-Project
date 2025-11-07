@@ -1,5 +1,5 @@
 # Declare phony targets so Make always runs them as commands
-.PHONY: all clean 
+.PHONY: all clean shiny
 
 # List of all generated figures from R script
 FIGURES = figures/plot1.png \
