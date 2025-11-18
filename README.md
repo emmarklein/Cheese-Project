@@ -90,9 +90,9 @@ make cheese.html
 ``` 
 All figures will be generated and stored in **'/figures'**.
 
+
 To launch the shiny app: 
 ```bash
 make shiny
 ``` 
-
 Then, go to http://localhost:4747 to interact with the shiny app!
