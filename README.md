@@ -85,6 +85,7 @@ To run the full analysis inside RStudio terminal and generate the final cheese r
 make clean
 make cheese.html
 ``` 
+All figures will be generated and stored in **'/figures'**.
 
 To launch the shiny app: 
 ```bash
