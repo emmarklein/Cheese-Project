@@ -1,5 +1,5 @@
 # Declare phony targets so Make always runs them as commands
-.PHONY: all clean shiny
+.PHONY: clean shiny
 
 # List of all generated figures from R script
 FIGURES = figures/plot1.png \
@@ -8,9 +8,6 @@ FIGURES = figures/plot1.png \
           figures/plot4.png \
           figures/plot5.png \
           figures/plot6.png 
-
-# Generate all the figures and render report
-all: cheese.html $(FIGURES)
 
 # making fig directory
 figures/:
