@@ -1,319 +1,384 @@
 ---
-title: "Clustering"
+title: "Say Cheese!"
 output: html_document
-date: "2025-10-20"
+date: "BIOS611 Final Project"
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE,warning=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-# load libraries
-install.packages("patchwork")
-install.packages("plotly")
-library(tidyverse)
-library(cluster)
+# install and load libraries
 library(ggplot2)
+library(dplyr)
+library(stringr)
+library(tidyr)
+library(forcats)
+library(purrr)
+library(ggpubr)
+library(shiny)
 library(patchwork)
-library(plotly)
+
+# tidytuesday data loading
+tuesdata <- tidytuesdayR::tt_load('2024-06-04')
 ```
 
-## Task 1 -- Clusters and the Gap Statistic
-Here is a function to generate the data:
-```{r}
-generate_hypercube_clusters <- function(n, k, side_length, noise_sd = 1.0) {
-  points_list <- list()
-  labels <- c()
-  
-  # creating a matrix (n x n) with side length on the diagonal, zeroes otherwise
-  # each row is a cluster center at a positive corner of the cube
-  # the positive corners are exactly the points where one coordinate = side_length, all others = 0
-  cluster_centers <- diag(side_length, n, n)
-  
-  for (i in 1:n) {
-    # Generate k points around this center with Gaussian noise
-    cluster_points <- matrix(rnorm(k * n, mean = 0, sd = noise_sd), nrow = k, ncol = n) + 
-                      matrix(rep(cluster_centers[i, ], each = k), nrow = k)
-    points_list[[i]] <- cluster_points
-    labels <- c(labels, rep(i, k))
-  }
-  
-  points <- do.call(rbind, points_list)
-  return(list(points = points, labels = labels))
-}
-```
+### Which countries produce the most cheese varieties?
+```{r,warning=FALSE}
+# cheese data
+cheeses <- tuesdata$cheeses
 
-Now, let's use the function above to create datasets where clusters move progressively closer. Running a simulation below.
-```{r}
-# parameters for the simulation below
-k <- 100 # points per cluster
-noise_sd <- 1.0 # keep noise at 1 sd
-dimensions <- c(6,5,4,3,2) # n
-side_lengths <- 10:1 #for each dimension, we need to test side lengths from 10 down to 1
+# UK is written in many different ways, let's standardize it
+country_keywords <- c(
+  "United Kingdom" = "United Kingdom",
+  "England" = "United Kingdom",
+  "Scotland" = "United Kingdom",
+  "Wales" = "United Kingdom",
+  "Great Britain" = "United Kingdom",
+  "Holland" = "Netherlands"
+)
 
-# for storing results
-results <- data.frame()
-
-# Loop over dimensions and side lengths
-for (n in dimensions) {
-  for (L in side_lengths) {
-    cat("n =", n, "side_length =", L, "\n")
-    
-    # Generate data using my function above
-    data <- generate_hypercube_clusters(n = n, k = k, side_length = L, noise_sd = noise_sd)
-    points <- data$points
-    
-    # calculating the gap statistic with clusGap! using kmeans as our input function
-    # specify nstart = 20 and iter.max = 50 to ensure good clustering
-    gap_stat <- clusGap(points, FUN = function(x, k) {
-                    kmeans(x, centers = k, nstart = 20, iter.max = 50)
-                  },
-                  K.max = n+2, B = 20)
-    
-    # let's find the best number of clusters according to Gap statistic
-    optimal_k <- maxSE(gap_stat$Tab[,"gap"], gap_stat$Tab[,"SE.sim"], method = "firstSEmax")
-    
-    # Store results here
-    results <- rbind(results, data.frame(n = n, side_length = L, estimated_k = optimal_k))
-  }
+## function to clean the country column
+clean_country <- function(df, country_col = "country") {
+  df %>%
+    # Split multi-country entries first
+    separate_rows(.data[[country_col]], sep = ",\\s*") %>%
+    mutate(country_clean = str_trim(.data[[country_col]])) %>%
+    rowwise() %>%
+    mutate(
+      country_clean = {
+        match <- names(country_keywords)[str_detect(country_clean, regex(names(country_keywords), ignore_case = TRUE))]
+        if(length(match) > 0) country_keywords[match[1]] else country_clean
+      }
+    ) %>%
+    ungroup() %>%
+    filter(!is.na(country_clean))
 }
 
-# View results
-print(results)
-```
+# Apply function
+cheeses_clean <- clean_country(cheeses)
 
-Interesting, let's do some visualization to understand what is happening here. Creating plots showing the estimated number of clusters as a function of the side length for each dimension.
-```{r}
-# make n as integer for plotting
-results$n <- as.integer(results$n)
+# Cheese production across different countries
+cheese_counts <- cheeses_clean %>%
+  count(country_clean, sort = TRUE) %>%
+  filter(!is.na(country_clean)) %>% 
+  slice_max(n, n = 20)
 
-# List to store plots
-plot_list <- list()
-
-for (dim in sort(unique(results$n), decreasing = TRUE)) {
-  df <- subset(results, n == dim)
-  
-  # Separate dataframe for the red reference line
-  ref_line <- data.frame(yintercept = dim, label = "True number of clusters")
-  
-  p <- ggplot(df, aes(x = side_length, y = estimated_k, group = 1)) +
-    geom_line(color = "steelblue", linewidth = 1.2) +
-    geom_point(color = "steelblue", size = 2) +
-    # Now use data=ref_line for the red reference line
-    geom_hline(data = ref_line, aes(yintercept = yintercept, color = label),
-               linetype = "dashed", size = 1) +
-    scale_color_manual(values = c("True number of clusters" = "red")) +
-    scale_x_reverse(breaks = 1:10) +
-    coord_cartesian(ylim = c(0, 8)) +
-    labs(
-      title = paste("Dimensions (n):", dim),
-      x = "side length",
-      y = "Estimated # of clusters",
-      color = ""  # Legend title
-    ) +
-    theme_minimal() +
-    theme(
-      text = element_text(size = 10),
-      strip.text = element_text(size = 10),
-      legend.position = "bottom"
-    )
-  
-  plot_list[[as.character(dim)]] <- p
-}
-
-# Combine into a grid: 3 in top row, 2 in bottom
-combined_plot <- (plot_list[["6"]] | plot_list[["5"]] | plot_list[["4"]]) / 
-                 (plot_list[["3"]] | plot_list[["2"]]) +
-                 plot_layout(guides = "collect")
-
-combined_plot
-
-#ggsave("figures/combined_plot.png", plot = combined_plot, width = 10, height = 6, dpi = 300)
-
-
-```
-
-Results for each dimension:
-For n = 6, the estimated number of clusters is reduced at side length = 4.
-For n = 5, the estimated number of clusters is reduced at side length = 3.
-For n = 4, the estimated number of clusters is reduced at side length = 2.
-For n = 3, the estimated number of clusters is reduced at side length = 2.
-For n = 2, the estimated number of clusters is reduced at side length = 1.
-
-My takeaway is that as the number of dimensions increase, it is crucial to have larger separation between cluster centers (larger side length values) to reliably detect the true number of clusters.
-
-
-## Task 2 -- Spectral Clustering on Concentric Shells
-
-First, let's build a function to generate shell clusters!
-```{r}
-generate_shell_clusters <- function(n_shells, k_per_shell, max_radius, noise_sd = 0.1) {
-  # radius values from 1 to max evenly spaced for num of shells needed
-  radius_values <- seq(1, max_radius, length.out = n_shells)
-  
-  # for storing results
-  all_points <- data.frame()
-  
-  for (r in radius_values) {
-    # let's get random points on sphere 
-    theta <- runif(k_per_shell, 0, 2 * pi)
-    phi <- acos(runif(k_per_shell, -1, 1))
-    
-    # add noise to radius, thickness to each shell
-    noisy_r <- r + rnorm(k_per_shell, mean = 0, sd = noise_sd)
-    
-    # get 3D position for each point on the shell for plotting purposes
-    x <- noisy_r * sin(phi) * cos(theta)
-    y <- noisy_r * sin(phi) * sin(theta)
-    z <- noisy_r * cos(phi)
-    
-    # make small df for one shell and then combine with previous shells
-    shell_df <- data.frame(x, y, z, shell = as.factor(r))
-    all_points <- rbind(all_points, shell_df)
-  }
-  
-  return(all_points)
-}
-```
-
-Now, let's generate a sample dataset and create an interactive 3D scatter plot using plotly to confirm this structure.
-```{r}
-set.seed(42)
-
-# randomly picking param values for sample dataset
-sample_data <- generate_shell_clusters(n_shells = 3, k_per_shell = 400, max_radius = 3)
-
-# relabel shells for legend in plot
-sample_data$shell_label <- factor(paste("Shell", 1:nlevels(sample_data$shell))[as.integer(sample_data$shell)])
-
-# 3D scatter plot
-plot_ly(sample_data, 
-        x = ~x, y = ~y, z = ~z, 
-        color = ~shell_label, 
-        colors = "Set2",
-        type = "scatter3d",
-        mode = "markers",
-        marker = list(size = 3)) %>%
-  layout(
-    title = list(text = "3D Concentric Shells test data", font = list(size = 16)),
-    scene = list(
-      xaxis = list(title = "X"),
-      yaxis = list(title = "Y"),
-      zaxis = list(title = "Z")
-    ),
-    legend = list(title = list(text = "Shell"))
-  )
-```
-
-
-Great, now we can tell that our function works! Now we can implement spectral clustering. Inputs should be data (x) and number of clusters (k).
-```{r}
-spectral_clustering <- function(x, k, d_threshold = 1) {
-  # Step 1: Build adjacency matrix
-  dist_mat <- as.matrix(dist(x))
-  A <- (dist_mat < d_threshold) * 1
-  diag(A) <- 0
-
-  # Step 2: Compute degree and Laplacian matrices
-  D <- diag(rowSums(A))
-  L <- D - A
-
-  # Step 3: Compute normalized Laplacian L_sym = D^{-1/2} * L * D^{-1/2}
-  D_inv_sqrt <- diag(1 / sqrt(diag(D)))
-  D_inv_sqrt[!is.finite(D_inv_sqrt)] <- 0  # handles isolated points safely
-  L_sym <- D_inv_sqrt %*% L %*% D_inv_sqrt
-
-  # Step 4: Eigen decomposition
-  eig <- eigen(L_sym, symmetric = TRUE)
-
-  # smallest k non-zero eigenvectors
-  tol <- 1e-10
-  nonzero_idx <- which(eig$values > tol)       # filter out numerical zeros
-  eig_order <- order(eig$values[nonzero_idx])  # ascending order of non-zero eigenvalues
-  U <- eig$vectors[, nonzero_idx[eig_order[1:k]]]  # pick k smallest non-zero eigenvectors
-
-  # K-means on rows of U
-  # normalize U?
-  U <- U / sqrt(rowSums(U^2))
-  U[!is.finite(U)] <- 0
-  km <- kmeans(U, centers = k, nstart = 20, iter.max = 200)
-
-  return(km)
-}
-
-
-```
-
-Great, now we have our function generate_shell_clusters() and can use this to run a simulation.
-```{r}
-# parameters for simulation
-radius_values <- seq(10, 0, by = -1)
-# constants below
-n_shells <- 4
-k_per_shell <- 100
-noise_sd <- 0.1
-
-results_shells <- data.frame(max_radius = numeric(), estimated_k = numeric())
-
-for (r in radius_values) {
-  # generate dataset
-  data_shells <- generate_shell_clusters(
-    n_shells = n_shells,
-    k_per_shell = k_per_shell,
-    max_radius = r,
-    noise_sd = noise_sd
-  )
-  
-  # just extract the points
-  points <- as.matrix(data_shells[, c("x", "y", "z")])
-  
-  #set.seed(123)
-  # run gap statistic using spectral clustering
-  gap <- clusGap(points,
-               FUN = function(x, k){ spectral_clustering(x, k, d_threshold = 1)},
-               K.max = n_shells + 2,
-               B = 20)
-
-  
-  est_k <- maxSE(gap$Tab[,"gap"], gap$Tab[,"SE.sim"], method = "firstSEmax")
-  
-  results_shells <- rbind(results_shells, data.frame(max_radius = r, estimated_k = est_k))
-}
-
-results_shells
-```
-
-Now, let's plot the estimated number of clusters vs. maximum radius!
-```{r}
-# Make sure max_radius is numeric for plotting
-results_shells$max_radius <- as.numeric(results_shells$max_radius)
-
-# Reference line for true number of clusters
-true_k <- 4
-ref_line <- data.frame(yintercept = true_k, label = "True number of clusters")
-
-# Plot
-ggplot(results_shells, aes(x = max_radius, y = estimated_k, group = 1)) +
-  geom_line(color = "steelblue", size = 1.2) +
-  geom_point(color = "steelblue", size = 2) +
-  geom_hline(data = ref_line, aes(yintercept = yintercept, color = label),
-             linetype = "dashed", size = 1) +
-  scale_color_manual(values = c("True number of clusters" = "red")) +
-  scale_x_reverse(breaks = sort(unique(results_shells$max_radius))) +
-  coord_cartesian(ylim = c(0, max(results_shells$estimated_k) + 1)) +
+plot1 <- ggplot(cheese_counts, aes(x = reorder(country_clean, n), y = n)) +
+  geom_col(fill = "goldenrod") + #cheesy color
+  geom_text(aes(label = n), 
+            hjust = -0.1,
+            size = 3) +
+  coord_flip() +
+  theme_minimal(base_size = 14) +
   labs(
-    title = "Estimated number of clusters vs max radius",
-    x = "Maximum radius",
-    y = "Estimated # of clusters",
-    color = ""
-  ) +
-  theme_minimal() +
-  theme(
-    text = element_text(size = 12),
-    legend.position = "bottom"
-  )
+    x = " ",
+    y = "Types of cheese",
+    title = "Which countries produce the most cheese varieties?"
+  ) 
+
+#let's check it out!
+plot1
 ```
 
-As the maximum radius decreases and the shells get closer together, it becomes more difficult to predict the accurate number of clusters. This is why we see better predictions with larger radius values. The algorithm’s failure point happens when the shells are so close together that the points may overlap, possibly leading to either merged clusters. This result would change if I used a different d_threshold, for example 0.8 or 1.2. Lower thresholds like 0.8 would restrict the graph such that only closer points become connected (fewer points are connected in general compared to d_threshold =1). Therefore, lower threshold values may overestimate the number of clusters when clusters are split into smaller sections based on less connectivity. In contrast, higher threshold values like 1.2 may increase connectivity in the graph, allowing for clusters to potentially merge and result in lower cluster estimates. A lower threshold may help distinguish clusters when the radius is small because it restricts connectivity to nodes in the graph that have a stronger connection, compared to a larger threshold that may be more warranted with larger radii.
+Interestingly, the United States produces 318 different types of cheeses! The top 5 cheese-producing countries are the United States, the United Kingdom, France, Italy, and Canada.. based on this dataset.
 
-However, as the shell radius gets larger the distance between points in the shell naturally decreases - same number of points distributed over a larger volume/surface area. Therefore, spectral clustering becomes challenging and the effect described above is less obvious, based on the hw assignment itself.
+### Which US states produce the most cheese varieties?
+```{r}
+# Let's focus on the US and check out the cheese production by region
+cheese_US <- cheeses_clean %>%
+  filter(str_detect(country_clean, "United States")) %>% 
+  filter(!is.na(region)) #we need this info
+
+# US state names and abbreviations
+states_full <- state.name
+states_abbr <- state.abb
+state_lookup <- setNames(state.name, state.abb)
+
+# Cleaning function to fix the region naming
+clean_region <- function(region_col) {
+  sapply(region_col, function(x) {
+    if (is.na(x)) return(NA)
+    
+    x_clean <- str_trim(x)
+    
+    # 1. Match full state name anywhere in the string
+    full_match <- states_full[str_detect(x_clean, regex(states_full, ignore_case = TRUE))]
+    if (length(full_match) > 0) return(full_match[1])
+    
+    # 2. Match exact state abbreviation (whole word, case-insensitive)
+    abb_match <- states_abbr[str_detect(x_clean, regex(paste0("\\b", states_abbr, "\\b"), ignore_case = TRUE))]
+    if (length(abb_match) > 0) return(state_lookup[abb_match[1]])
+    
+    # 3. If no state match, leave original
+    return(x_clean)
+  })
+}
+
+# Apply to dataset and only include US states as regions
+cheesy_states <- cheese_US %>%
+  mutate(state = clean_region(region)) %>%
+  filter(state %in% state.name)
+
+# Cheese production across different regions in the US, same counting as before
+cheese_states_n <- cheesy_states %>%
+  count(state, sort = TRUE)
+
+plot2 <- ggplot(cheese_states_n, aes(x = reorder(state, n), y = n)) +
+  geom_col(fill = "#FFA600") + #cheddar orange color
+  geom_text(aes(label = n), 
+            hjust = -0.1,
+            size = 3) +
+  coord_flip() +
+  theme_minimal(base_size = 14) +
+  labs(
+    x = " ",
+    y = "Types of cheese",
+    title = "Which US states produce the most cheese varieties?"
+  ) 
+
+plot2
+```
+
+Wow! Wisconsin produces a LOT of cheese... I am not that surprised though, people from Wisconsin are called cheeseheads for a reason!
+
+### Milk types used in cheese across the world
+```{r, fig.width=12, fig.height=5}
+# cleaning milk type column
+cheeses_milk_split <- cheeses_clean %>%
+  separate_rows(milk, sep = ",\\s*") %>%
+  mutate(milk = str_trim(milk)) %>%
+  filter(!is.na(milk))
+
+# Getting the top 5 countries by number of cheeses
+top_countries <- cheeses_milk_split %>%
+  count(country_clean, sort = TRUE) %>%
+  slice_max(n, n = 5) %>%
+  pull(country_clean)
+
+# Filter and count milk types for only those countries
+milk_country_counts <- cheeses_milk_split %>%
+  filter(country_clean %in% top_countries) %>%
+  count(country_clean, milk, sort = TRUE)
+
+# reorder countries by total cheese count
+country_order <- milk_country_counts %>%
+  group_by(country_clean) %>%
+  summarise(total = sum(n)) %>%
+  arrange(desc(total)) %>%
+  pull(country_clean)
+
+milk_country_counts <- milk_country_counts %>%
+  mutate(country_clean = factor(country_clean, levels = country_order))
+
+# Plot one barplot per country, ordered by total cheese types
+plot3 <- ggplot(milk_country_counts, aes(x = reorder(milk, n), y = n, fill = milk)) +
+  geom_col(show.legend = FALSE) +
+  geom_text(aes(label = n), 
+            hjust = -0.1,      # slightly outside the bar
+            size = 3) +
+  facet_wrap(~ country_clean, scales = "free_y", ncol = 5) +
+  coord_flip(clip = "off") +       # prevent text from being clipped
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2))) +  # add extra space above bars
+  labs(
+    title = "Milk types used in cheese across the world",
+    x = "Milk type",
+    y = "Number of cheeses"
+  ) +
+  theme_minimal(base_size = 10) +
+  theme(
+    strip.text = element_text(face = "bold"),
+    plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
+    plot.margin = margin(20, 40, 20, 20)  # top, right, bottom, left
+  )
+
+plot3
+```
+
+Ok, so cow milk is most commonly used across the top 5 cheese producing countries. Then, goat milk is the second most common in 4 out of the 5 top cheese producing countries (US, UK, France, and Canada). However, Italy has more sheep milk-based cheese than goat! I guess Italians love their sheep cheeses...
+
+
+### Cheese types across the top 5 cheese-producing countries
+```{r,fig.width=12, fig.height=8}
+cheeses_clean <- cheeses_clean %>%
+  mutate(
+    main_type = str_trim(str_split_fixed(type, ",", 2)[,1]) # take first descriptor before comma
+  )
+
+cheeses_top <- cheeses_clean %>%
+  filter(country_clean %in% top_countries) %>%
+  count(country_clean, main_type, sort = TRUE) %>%
+  group_by(country_clean) %>%
+  slice_max(n, n = 5) %>%     # top 5 types per country
+  ungroup() %>% filter(!is.na(main_type))
+
+#fix order
+cheeses_top <- cheeses_top %>%
+  mutate(country_clean = factor(country_clean, levels = country_order))
+
+# barplot per country
+plot_bar <- ggplot(cheeses_top, aes(x = reorder(main_type, n), y = n, fill = main_type)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  facet_wrap(~ country_clean, scales = "free_y", ncol = 5) +
+  labs(
+    title = "Cheese types across the top 5 cheese-producing countries",
+    x = "",
+    y = "Count"
+  ) +
+  theme_minimal(base_size = 10)
+
+# let's make it a pie chart for fun!
+# Compute proportions per country (so each pie sums to 1)
+cheeses_pie <- cheeses_top %>%
+  group_by(country_clean) %>%
+  mutate(perc = n / sum(n)) %>%
+  ungroup()
+
+# Pie chart per country (it's like a cheese wheel haha!)
+plot_pie <- ggplot(cheeses_pie %>% filter(perc > 0), 
+                   aes(x = "", y = perc, fill = main_type)) +
+  geom_col(width = 0.95, color = NA) +  # no border lines
+  coord_polar(theta = "y") +
+  facet_wrap(~ country_clean, ncol = 5) +
+  labs(
+    title = " ",
+    fill = " "
+  ) +
+  theme_void(base_size = 13) +
+  theme(
+    strip.text = element_text(size = 10),
+    plot.title = element_text(
+      hjust = 0.5, size = 16, margin = margin(b = 10, t = 20)
+    ),
+    legend.position = "bottom",
+    legend.direction = "horizontal",
+    legend.box = "horizontal",
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 8),
+    legend.spacing.x = unit(0.3, "cm")
+  ) +
+  guides(fill = guide_legend(nrow = 1))
+
+plot4 <- plot_bar / plot_pie
+
+plot4
+```
+
+This reveals a very interesting trend. Most of the top 5 cheese producing countries have a good spread of cheese types, but France and Canada both have a large proportion of soft cheeses, it's actually a majority of the cheeses produced in these countries. I am not surprised by this because France is very famous for its soft cheeses such as Brie and Blue cheese. And many Canadian cheeses are derived from traditional French varieties, reflecting the lasting influence of French colonization in Canada.
+
+
+### How does fat content vary between soft and hard cheeses?
+```{r,fig.width=5, fig.height=6}
+#let's focus on fat content!
+cheeses_fat <- cheeses_clean %>% filter(!is.na(fat_content))
+
+# let's standardize the fat content measurement
+cheeses_fat_clean <- cheeses_fat %>%
+  mutate(
+    fat_percent = case_when(
+      # If value is a range like "40-46%"
+      str_detect(fat_content, "-") ~ map_dbl(fat_content, function(x) {
+        nums <- str_extract_all(x, "\\d+\\.?\\d*")[[1]] %>% as.numeric()
+        mean(nums)
+      }),
+      # If value is a single % like "50%"
+      str_detect(fat_content, "%") ~ str_extract(fat_content, "\\d+\\.?\\d*") %>% as.numeric(),
+      # If value is g/100g
+      str_detect(fat_content, "g/100g") ~ str_extract(fat_content, "\\d+\\.?\\d*") %>% as.numeric(),
+      TRUE ~ NA_real_
+    )
+  )
+
+# Filter to only Soft and Hard cheeses
+cheeses_simple <- cheeses_fat_clean %>%
+  mutate(
+    type_group = case_when(
+      str_detect(main_type, "hard") ~ "Hard",
+      str_detect(main_type, "soft") ~ "Soft",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  filter(!is.na(type_group))  # remove anything not Soft or Hard
+
+# Performing t test to see if the difference in hard vs. soft cheese is statistically significant
+t_test_result <- t.test(fat_percent ~ type_group, data = cheeses_simple)
+t_test_result
+p_val <- t_test_result$p.value  # extract p-value
+# Format p-value nicely
+p_label <- paste0("p = ", signif(p_val, 3))
+
+# Define cheesy colors for the boxplot
+cheese_colors <- c("Soft" = "#FFD966",  # light yellow
+                   "Hard" = "#FFA500")  # deeper orange
+
+my_comparisons <- list(c("Soft", "Hard"))
+
+plot5 <- ggplot(cheeses_simple, aes(x = type_group, y = fat_percent, fill = type_group)) +
+  geom_boxplot(width = 0.4, alpha = 0.8) +
+  scale_fill_manual(values = cheese_colors) +
+  labs(
+    title = "How does fat content vary between soft and hard cheeses?",
+    x = "Cheese Type",
+    y = "Fat content (%)",
+    fill = "Cheese Type"
+  ) +
+  theme_minimal(base_size = 9) +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5, face = "bold")
+  ) +
+  stat_compare_means(
+    comparisons = my_comparisons,
+    method = "t.test",
+    label = "p.signif",      # shows *, **, ***
+    tip.length = 0.03,       # length of the horizontal ends of the bracket
+    size = 6,                # size of the asterisk
+    label.y = max(cheeses_simple$fat_percent) + 5
+  ) +
+  annotate(
+    "text",
+    x = 1.5,  # middle between the two boxes (Soft = 1, Hard = 2)
+    y = max(cheeses_simple$fat_percent) + 5,  # position above boxes
+    label = p_label,
+    size = 4
+  )
+
+plot5
+```
+
+Well, this is interesting! I performed a t-test to compare fat content between hard and soft cheeses, and the p-value = 0.01533. Since p < 0.05, we can say that the difference in fat content between hard and soft cheeses is statistically significant. Clearly, the hard cheeses have higher fat content compared to soft cheeses, which makes sense because the longer aging and lower moisture in hard cheeses concentrate fat.
+
+
+### How does average fat content vary between cheese families?
+```{r}
+# let's look at fat content across different cheese families
+cheese_family_fat <- cheeses_simple %>%
+  filter(!is.na(fat_percent), !is.na(family)) %>%
+  group_by(family) %>%
+  summarize(mean_fat = mean(fat_percent, na.rm = TRUE)) %>%
+  arrange(desc(mean_fat))
+
+
+plot6 <- ggplot(cheese_family_fat, aes(x = reorder(family, mean_fat), y = mean_fat, fill = mean_fat)) +
+  geom_col(width = 0.6) +
+  coord_flip() +  # makes it easier to read long family names
+  scale_fill_gradient(low = "#FFF7AE", high = "#FFB347") +
+  labs(
+    title = "How does average fat content vary between cheese families?",
+    x = "Cheese family",
+    y = "Mean fat content (%)"
+  ) +
+  theme_minimal(base_size = 10) +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5, face = "bold")
+  )
+
+plot6
+```
+
+
+Based on this barplot, we can see that Havarti, Cornish, and Caciotta families have the highest fat content! And I think they are extra yummy... now that are are done with our cheesy adventure, you deserve a treat! How about a grilled cheese? :)
+
+
 
