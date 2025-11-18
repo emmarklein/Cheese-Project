@@ -45,7 +45,7 @@ The repository contains:
    Automates the workflow, runs scripts and generates outputs with a single command.
    
 8. **`shinyapp.R`**  
-   This R script includes code to launch a shiny app with all the figures.
+   R script that launches a shiny app with all figures from cheese.R.
 
 9. **`README.md`**  
    This file! Provides an overview of the project.
@@ -90,3 +90,5 @@ To launch the shiny app:
 ```bash
 make shiny
 ``` 
+
+Then, go to http://localhost:4747 to interact with the shiny app!
