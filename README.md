@@ -35,20 +35,23 @@ The repository contains:
 4. **`cheese.Rmd`**  
    RMarkdown version of the analysis, with commentary and visualizations. Can be rendered to PDF or HTML.
 
-5. **`cheese.html`**  
-   Rendered HTML output of `cheese.Rmd` with full analysis results.
-
-6. **`/figures`**  
-   Folder containing all generated plots and images.
-
-7. **`Makefile`**  
+5. **`Makefile`**  
    Automates the workflow, runs scripts and generates outputs with a single command.
    
-8. **`shinyapp.R`**  
+6. **`shinyapp.R`**  
    R script that launches a shiny app with all figures from cheese.R.
 
-9. **`README.md`**  
+7. **`README.md`**  
    This file! Provides an overview of the project.
+
+
+This repository will generate:
+
+1. **`/figures`**  
+   Folder containing all generated plots and images.
+   
+2. **`cheese.html`**  
+   Rendered HTML output of `cheese.Rmd` with full analysis results.
 
 ---
 
